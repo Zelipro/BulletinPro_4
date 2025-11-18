@@ -3,6 +3,11 @@ from Zeli_Dialog import ZeliDialog2
 from sync_manager import supabase_db
 
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
 def Gestion_Matiere(page, Donner):
     """Gestion des matières - Version Supabase complète"""
     Dialog = ZeliDialog2(page)
