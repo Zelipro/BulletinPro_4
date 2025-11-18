@@ -2,7 +2,6 @@ import flet as ft
 from Zeli_Dialog import ZeliDialog2
 from sync_manager import supabase_db
 
-
 # === CORRECTIF COMPATIBILITÉ LINUX ===
 if not hasattr(ft, 'Colors'):
     ft.Colors = ft.colors
@@ -10,7 +9,7 @@ if not hasattr(ft, 'Colors'):
 
 # === CORRECTIF COMPATIBILITÉ LINUX ===
 if not hasattr(ft, 'Icons'):
-    ft.Colors = ft.icons
+    ft.Icons = ft.icons
 # =====================================
 
 def Gestion_Matiere(page, Donner):
