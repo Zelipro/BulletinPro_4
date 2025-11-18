@@ -3,7 +3,7 @@
 # ================================
 
 # Core Framework
-flet==0.24.1
+flet[all]>=0.24.0
 
 # PDF Generation
 fpdf2==2.8.1
