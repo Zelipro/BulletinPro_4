@@ -2,6 +2,15 @@ import flet as ft
 from Zeli_Dialog import ZeliDialog2
 from sync_manager import supabase_db
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Icons = ft.icons
+# =====================================
 
 def Gestion_Classe(page, Donner):
     """Gestion des classes - Version Supabase complète"""
