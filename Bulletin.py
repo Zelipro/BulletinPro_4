@@ -6,8 +6,8 @@ import os
 from sync_manager import supabase_db
 
 # === CORRECTIF COMPATIBILITÉ LINUX ===
-if not hasattr(ft, 'Colors'):
-    ft.Colors = ft.colors
+#if not hasattr(ft, 'Colors'):
+#    ft.Colors = ft.colors
 # =====================================
 
 global PAGE
