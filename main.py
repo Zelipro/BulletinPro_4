@@ -17,6 +17,15 @@ from Bulletin import Generation_Bulletin
 from sync_manager import supabase_db
 #-----
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Icons = ft.icons
+# =====================================
 
 #======================= Pour Page 0 =======
 #======================             ==============
