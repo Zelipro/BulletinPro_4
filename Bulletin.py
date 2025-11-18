@@ -10,6 +10,11 @@ if not hasattr(ft, 'Colors'):
     ft.Colors = ft.colors
 # =====================================
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Icons = ft.icons
+# =====================================
+
 global PAGE
 def Generation_Bulletin(page, Donner):
     """Génération des bulletins scolaires avec FPDF2 - Compatible PyInstaller"""
