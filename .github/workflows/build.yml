@@ -61,7 +61,7 @@ jobs:
     
     - name: 🔨 Compilation PyInstaller
       run: |
-        pyinstaller --noconfirm --clean --name "BulletinPro" --windowed --onefile --icon "assets/icons/app_icon.ico" --add-data "config.py;." --add-data "assets/icons;assets/icons" --hidden-import "flet" --hidden-import "flet.core" --hidden-import "fpdf" --hidden-import "supabase" main.py
+        pyinstaller --noconfirm --clean --name "BulletinPro" --windowed --onefile --icon "assets/icons/logo.ico" --add-data "config.py;." --add-data "assets/icons;assets/icons" --hidden-import "flet" --hidden-import "flet.core" --hidden-import "fpdf" --hidden-import "supabase" main.py
       shell: pwsh
     
     - name: 📦 Préparation structure Windows
