@@ -8,6 +8,11 @@ if not hasattr(ft, 'Colors'):
     ft.Colors = ft.colors
 # =====================================
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Colors = ft.icons
+# =====================================
+
 def Gestion_Matiere(page, Donner):
     """Gestion des matières - Version Supabase complète"""
     Dialog = ZeliDialog2(page)
