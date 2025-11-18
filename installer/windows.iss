@@ -10,9 +10,9 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-OutputDir=dist\installers
+OutputDir=..\dist\installers
 OutputBaseFilename=BulletinPro_Setup_{#MyAppVersion}
-SetupIconFile=dist\BulletinPro_Package\app_icon.ico
+SetupIconFile=..\dist\BulletinPro_Package\app_icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -25,7 +25,7 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "Creer raccourci bureau"
 
 [Files]
-Source: "dist\BulletinPro_Package\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\dist\BulletinPro_Package\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
