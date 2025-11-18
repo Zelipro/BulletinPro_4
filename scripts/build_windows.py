@@ -1,102 +1,115 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script de build Windows pour BulletinPro
 Prépare la structure pour l'installateur Inno Setup
+Compatible encodage Windows
 """
 
 import os
 import shutil
 from pathlib import Path
+import sys
+
+# Forcer l'encodage UTF-8 pour Windows
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
 def create_windows_structure():
     """Prépare les fichiers pour Inno Setup"""
     
-    project_root = Path(__file__).parent.parent
-    dist_dir = project_root / "dist"
-    installers_dir = dist_dir / "installers"
-    
-    print("🪟 Préparation de la structure Windows...")
-    
-    # Créer le dossier installers
-    installers_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Vérifier que l'exécutable existe
-    exe_path = dist_dir / "BulletinPro.exe"
-    if not exe_path.exists():
-        print("❌ Erreur : BulletinPro.exe introuvable dans dist/")
-        print("💡 Lancez d'abord PyInstaller pour créer l'exécutable")
+    try:
+        project_root = Path(__file__).parent.parent
+        dist_dir = project_root / "dist"
+        installers_dir = dist_dir / "installers"
+        
+        print("[INFO] Preparation de la structure Windows...")
+        
+        # Créer le dossier installers
+        installers_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Vérifier que l'exécutable existe
+        exe_path = dist_dir / "BulletinPro.exe"
+        if not exe_path.exists():
+            print("[ERROR] BulletinPro.exe introuvable dans dist/")
+            print("[INFO] Lancez d'abord PyInstaller pour creer l'executable")
+            return False
+        
+        print(f"[OK] Executable trouve : {exe_path}")
+        print(f"[INFO] Taille : {exe_path.stat().st_size / (1024*1024):.2f} MB")
+        
+        # Vérifier l'icône
+        icon_path = project_root / "assets" / "icons" / "app_icon.ico"
+        if not icon_path.exists():
+            print("[ERROR] app_icon.ico introuvable")
+            print("[INFO] Lancez d'abord create_icons.py")
+            return False
+        
+        print(f"[OK] Icone trouvee : {icon_path}")
+        
+        # Copier les fichiers nécessaires dans un dossier temporaire
+        temp_dir = dist_dir / "BulletinPro_Package"
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        temp_dir.mkdir()
+        
+        # Copier l'exécutable
+        shutil.copy2(exe_path, temp_dir / "BulletinPro.exe")
+        print("[OK] Executable copie")
+        
+        # Copier l'icône
+        icon_dest = temp_dir / "app_icon.ico"
+        shutil.copy2(icon_path, icon_dest)
+        print("[OK] Icone copiee")
+        
+        # Copier les fichiers de configuration (si présents)
+        files_to_copy = ["config.py", ".env", "README.md", "LICENSE.txt"]
+        for file in files_to_copy:
+            src = project_root / file
+            if src.exists():
+                shutil.copy2(src, temp_dir / file)
+                print(f"[OK] {file} copie")
+        
+        print("\n[SUCCESS] Structure Windows prete pour Inno Setup !")
+        print(f"[INFO] Dossier : {temp_dir}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Erreur : {e}")
+        import traceback
+        traceback.print_exc()
         return False
-    
-    print(f"  ✅ Exécutable trouvé : {exe_path}")
-    
-    # Vérifier l'icône
-    icon_path = project_root / "assets" / "icons" / "app_icon.ico"
-    if not icon_path.exists():
-        print("❌ Erreur : app_icon.ico introuvable")
-        print("💡 Lancez d'abord create_icons.py")
-        return False
-    
-    print(f"  ✅ Icône trouvée : {icon_path}")
-    
-    # Copier les fichiers nécessaires dans un dossier temporaire
-    temp_dir = dist_dir / "BulletinPro_Package"
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
-    temp_dir.mkdir()
-    
-    # Copier l'exécutable
-    shutil.copy2(exe_path, temp_dir / "BulletinPro.exe")
-    print("  ✅ Exécutable copié")
-    
-    # Copier l'icône
-    icon_dest = temp_dir / "app_icon.ico"
-    shutil.copy2(icon_path, icon_dest)
-    print("  ✅ Icône copiée")
-    
-    # Copier les fichiers de configuration (si présents)
-    for file in ["config.py", ".env", "README.md", "LICENSE.txt"]:
-        src = project_root / file
-        if src.exists():
-            shutil.copy2(src, temp_dir / file)
-            print(f"  ✅ {file} copié")
-    
-    print("\n✅ Structure Windows prête pour Inno Setup !")
-    print(f"📁 Dossier : {temp_dir}")
-    
-    return True
 
 def generate_iss_file():
     """Génère dynamiquement le fichier .iss si nécessaire"""
     
-    project_root = Path(__file__).parent.parent
-    iss_path = project_root / "installer" / "windows.iss"
-    
-    # Si le fichier existe déjà, ne rien faire
-    if iss_path.exists():
-        print("ℹ️  Fichier windows.iss existant trouvé")
-        return
-    
-    print("📝 Génération du fichier Inno Setup...")
-    
-    iss_content = """#define MyAppName "BulletinPro"
+    try:
+        project_root = Path(__file__).parent.parent
+        iss_path = project_root / "installer" / "windows.iss"
+        
+        # Si le fichier existe déjà, ne rien faire
+        if iss_path.exists():
+            print("[INFO] Fichier windows.iss existant trouve")
+            return True
+        
+        print("[INFO] Generation du fichier Inno Setup...")
+        
+        iss_content = """#define MyAppName "BulletinPro"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "Votre Établissement"
+#define MyAppPublisher "Votre Etablissement"
 #define MyAppExeName "BulletinPro.exe"
-#define MyAppURL "https://github.com/votre-username/BulletinPro"
 
 [Setup]
-; Identifiant unique de l'application (NE PAS MODIFIER après publication)
 AppId={{8F9A3B2C-1D4E-5F6A-7B8C-9D0E1F2A3B4C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=LICENSE.txt
 OutputDir=dist\\installers
 OutputBaseFilename=BulletinPro_Setup_{#MyAppVersion}
 SetupIconFile=assets\\icons\\app_icon.ico
@@ -109,11 +122,9 @@ UninstallDisplayIcon={app}\\{#MyAppExeName}
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\\French.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}";
-Name: "quicklaunchicon"; Description: "Créer une icône dans la barre des tâches"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon"; Description: "Creer un raccourci sur le bureau"; GroupDescription: "Raccourcis:";
 
 [Files]
 Source: "dist\\BulletinPro_Package\\BulletinPro.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -121,129 +132,93 @@ Source: "dist\\BulletinPro_Package\\app_icon.ico"; DestDir: "{app}"; Flags: igno
 Source: "dist\\BulletinPro_Package\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; Menu Démarrer
 Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\app_icon.ico"
-Name: "{group}\\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-
-; Bureau
+Name: "{group}\\Desinstaller {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\app_icon.ico"; Tasks: desktopicon
 
-; Barre des tâches (Windows 7+)
-Name: "{userappdata}\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"; IconFilename: "{app}\\app_icon.ico"; Tasks: quicklaunchicon
-
 [Run]
-Filename: "{app}\\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-[Registry]
-; Ajouter au PATH (optionnel)
-Root: HKLM; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}')
-
-[Code]
-// Vérifie si le dossier est déjà dans le PATH
-function NeedsAddPath(Param: string): boolean;
-var
-  OrigPath: string;
-begin
-  if not RegQueryStringValue(HKEY_LOCAL_MACHINE,
-    'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment',
-    'Path', OrigPath)
-  then begin
-    Result := True;
-    exit;
-  end;
-  Result := Pos(';' + Param + ';', ';' + OrigPath + ';') = 0;
-end;
-
-// Message de bienvenue personnalisé
-procedure InitializeWizard();
-begin
-  WizardForm.WelcomeLabel2.Caption := 
-    'Cet assistant vous guidera dans l''installation de BulletinPro.' + #13#10 + #13#10 +
-    'BulletinPro est une application complète pour gérer les bulletins scolaires, ' +
-    'les notes des élèves et les statistiques de votre établissement.' + #13#10 + #13#10 +
-    'Cliquez sur Suivant pour continuer.';
-end;
-
-// Vérification de la version Windows
-function InitializeSetup(): Boolean;
-var
-  Version: TWindowsVersion;
-begin
-  Result := True;
-  GetWindowsVersionEx(Version);
-  
-  // Windows 10 minimum (build 10240)
-  if (Version.Major < 10) then
-  begin
-    MsgBox('BulletinPro nécessite Windows 10 ou supérieur.' + #13#10 + 
-           'Votre version de Windows n''est pas supportée.', 
-           mbError, MB_OK);
-    Result := False;
-  end;
-end;
+Filename: "{app}\\{#MyAppExeName}"; Description: "Lancer {#MyAppName}"; Flags: nowait postinstall skipifsilent
 """
-    
-    # Créer le dossier installer
-    iss_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Écrire le fichier
-    with open(iss_path, 'w', encoding='utf-8') as f:
-        f.write(iss_content)
-    
-    print(f"  ✅ Fichier créé : {iss_path}")
+        
+        # Créer le dossier installer
+        iss_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Écrire le fichier
+        with open(iss_path, 'w', encoding='utf-8') as f:
+            f.write(iss_content)
+        
+        print(f"[OK] Fichier cree : {iss_path}")
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Erreur generation .iss : {e}")
+        return False
 
 def create_license_file():
     """Crée un fichier LICENSE.txt par défaut si absent"""
     
-    project_root = Path(__file__).parent.parent
-    license_path = project_root / "LICENSE.txt"
-    
-    if license_path.exists():
-        return
-    
-    print("📄 Création du fichier LICENSE.txt...")
-    
-    license_content = """LICENCE D'UTILISATION - BulletinPro
+    try:
+        project_root = Path(__file__).parent.parent
+        license_path = project_root / "LICENSE.txt"
+        
+        if license_path.exists():
+            return True
+        
+        print("[INFO] Creation du fichier LICENSE.txt...")
+        
+        license_content = """LICENCE D'UTILISATION - BulletinPro
 
-Copyright (c) 2024 Votre Nom / Établissement
+Copyright (c) 2024 Votre Nom / Etablissement
 
-Permission est accordée d'utiliser ce logiciel à des fins éducatives.
+Permission est accordee d'utiliser ce logiciel a des fins educatives.
 
 CE LOGICIEL EST FOURNI "TEL QUEL", SANS GARANTIE D'AUCUNE SORTE.
 
 Pour toute question, contactez : votre@email.com
 """
-    
-    with open(license_path, 'w', encoding='utf-8') as f:
-        f.write(license_content)
-    
-    print(f"  ✅ LICENSE.txt créé")
+        
+        with open(license_path, 'w', encoding='utf-8') as f:
+            f.write(license_content)
+        
+        print("[OK] LICENSE.txt cree")
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Erreur creation LICENSE : {e}")
+        return False
 
 def main():
     """Fonction principale"""
     
     print("=" * 60)
-    print("🪟 BUILD WINDOWS - BulletinPro")
-    print("=" * 60 + "\n")
+    print("BUILD WINDOWS - BulletinPro")
+    print("=" * 60)
+    print("")
     
     # 1. Créer les fichiers nécessaires
-    create_license_file()
-    generate_iss_file()
+    if not create_license_file():
+        print("\n[ERROR] Echec creation LICENSE")
+        return 1
+    
+    if not generate_iss_file():
+        print("\n[ERROR] Echec generation .iss")
+        return 1
     
     # 2. Préparer la structure
     if not create_windows_structure():
-        print("\n❌ Build Windows échoué")
+        print("\n[ERROR] Build Windows echoue")
         return 1
     
     print("\n" + "=" * 60)
-    print("✅ PRÉPARATION WINDOWS TERMINÉE")
+    print("[SUCCESS] PREPARATION WINDOWS TERMINEE")
     print("=" * 60)
-    print("\n📋 Prochaines étapes :")
-    print("   1. L'exécutable est prêt dans : dist/BulletinPro_Package/")
+    print("\n[INFO] Prochaines etapes :")
+    print("   1. L'executable est pret dans : dist/BulletinPro_Package/")
     print("   2. Inno Setup compilera automatiquement l'installateur")
-    print("   3. Résultat : dist/installers/BulletinPro_Setup_1.0.0.exe")
+    print("   3. Resultat : dist/installers/BulletinPro_Setup_1.0.0.exe")
     
     return 0
 
 if __name__ == "__main__":
-    exit(main())
+    exit_code = main()
+    sys.exit(exit_code)
