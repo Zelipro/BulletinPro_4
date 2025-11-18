@@ -14,7 +14,7 @@ if not hasattr(ft, 'Colors'):
 
 # === CORRECTIF COMPATIBILITÉ LINUX ===
 if not hasattr(ft, 'Icons'):
-    ft.Colors = ft.icons
+    ft.Icons = ft.icons
 # =====================================
 
 def Saisie_Notes(page, Donner):
