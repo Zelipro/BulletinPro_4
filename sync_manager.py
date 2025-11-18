@@ -8,16 +8,6 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import os
 
-# === CORRECTIF COMPATIBILITÉ LINUX ===
-if not hasattr(ft, 'Colors'):
-    ft.Colors = ft.colors
-# =====================================
-
-# === CORRECTIF COMPATIBILITÉ LINUX ===
-if not hasattr(ft, 'Icons'):
-    ft.Icons = ft.icons
-# =====================================
-
 class SupabaseManager:
     """Gestionnaire unique pour toutes les opérations Supabase"""
     
