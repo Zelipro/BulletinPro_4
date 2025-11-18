@@ -1,4 +1,4 @@
-name: 🚀 Build BulletinPro Multi-Platform
+name: 🚀 Build BulletinPro Multi-Platform (Unifié)
 
 on:
   push:
@@ -7,21 +7,10 @@ on:
       - develop
     tags:
       - 'v*.*.*'
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-  
   pull_request:
     branches: 
       - main
-  
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version à builder'
-        required: false
-        default: '1.0.0'
 
 env:
   APP_NAME: BulletinPro
@@ -34,127 +23,197 @@ jobs:
   build-windows:
     name: 🪟 Build Windows
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
-    - name: 📥 Checkout du code source
+    - name: 📥 Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
-    - name: 🐍 Installation de Python
+    - name: 🐍 Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'
     
-    - name: 📦 Installation des dépendances
+    - name: 📦 Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
-        pip install pillow
+        pip install pillow pyinstaller
       shell: pwsh
     
-    - name: 🖼️ Génération des icônes
+    - name: 🖼️ Generate icons
       run: python scripts/create_icons.py
       shell: pwsh
     
-    - name: 🔨 Compilation PyInstaller
+    - name: 🔨 Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --clean --name "BulletinPro" --windowed --onefile --icon "assets/icons/app_icon.ico" --add-data "config.py;." --add-data "assets/icons;assets/icons" --hidden-import "flet" --hidden-import "flet.core" --hidden-import "fpdf" --hidden-import "supabase" main.py
+        pyinstaller --noconfirm --clean `
+          --name "BulletinPro" `
+          --windowed `
+          --onefile `
+          --icon "assets/icons/app_icon.ico" `
+          --add-data "config.py;." `
+          --add-data "assets/icons;assets/icons" `
+          --hidden-import "flet" `
+          --hidden-import "flet.core" `
+          --hidden-import "flet_core" `
+          --hidden-import "flet_runtime" `
+          --hidden-import "fpdf" `
+          --hidden-import "supabase" `
+          --hidden-import "PIL" `
+          --hidden-import "sqlite3" `
+          --collect-all flet `
+          --collect-all flet_core `
+          --collect-all flet_runtime `
+          main.py
       shell: pwsh
     
-    - name: 📦 Préparation structure Windows
+    - name: ✅ Verify build
+      run: |
+        if (Test-Path dist/BulletinPro.exe) {
+          Write-Host "✅ Executable created"
+          $size = (Get-Item dist/BulletinPro.exe).Length / 1MB
+          Write-Host "📦 Size: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Host "❌ Build failed"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: 📦 Prepare installer structure
       run: python scripts/build_windows.py
       shell: pwsh
     
-    - name: 🛠️ Installation Inno Setup
+    - name: 🛠️ Install Inno Setup
       run: choco install innosetup -y --no-progress
       shell: pwsh
     
-    - name: 🎁 Création installateur
+    - name: 🎁 Create installer
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/windows.iss
       shell: pwsh
     
-    - name: 📤 Upload installateur Windows
+    - name: 📤 Upload Windows installer
       uses: actions/upload-artifact@v4
       with:
         name: BulletinPro-Windows-Installer
         path: dist/installers/BulletinPro_Setup_*.exe
-        retention-days: 30
-        if-no-files-found: warn
+        retention-days: 90
     
-    - name: 📤 Upload portable Windows
+    - name: 📤 Upload Windows portable
       uses: actions/upload-artifact@v4
       with:
         name: BulletinPro-Windows-Portable
         path: dist/BulletinPro.exe
-        retention-days: 30
-        if-no-files-found: warn
+        retention-days: 90
 
   build-linux:
     name: 🐧 Build Linux
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
-    - name: 📥 Checkout du code source
+    - name: 📥 Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
-    - name: 🐍 Installation de Python
+    - name: 🐍 Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'
     
-    - name: 📦 Installation dépendances système
+    - name: 📦 Install system dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y libgtk-3-0 libnotify4 dpkg-dev fakeroot
+        sudo apt-get install -y \
+          libgtk-3-0 \
+          libnotify4 \
+          libgstreamer1.0-0 \
+          libgstreamer-plugins-base1.0-0 \
+          dpkg-dev \
+          fakeroot \
+          patchelf
     
-    - name: 📦 Installation dépendances Python
+    - name: 📦 Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
-        pip install pillow
+        pip install pillow pyinstaller staticx
     
-    - name: 🖼️ Génération des icônes
+    - name: 🖼️ Generate icons
       run: python scripts/create_icons.py
     
-    - name: 🔨 Compilation PyInstaller
+    - name: 🔨 Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --clean --name "bulletinpro" --windowed --onefile --icon "assets/icons/app_icon.png" --add-data "config.py:." --add-data "assets/icons:assets/icons" --hidden-import "flet" --hidden-import "flet.core" --hidden-import "fpdf" --hidden-import "supabase" main.py
+        pyinstaller --noconfirm --clean \
+          --name "bulletinpro" \
+          --windowed \
+          --onefile \
+          --icon "assets/icons/app_icon.png" \
+          --add-data "config.py:." \
+          --add-data "assets/icons:assets/icons" \
+          --hidden-import "flet" \
+          --hidden-import "flet.core" \
+          --hidden-import "flet_core" \
+          --hidden-import "flet_runtime" \
+          --hidden-import "fpdf" \
+          --hidden-import "supabase" \
+          --hidden-import "PIL" \
+          --hidden-import "sqlite3" \
+          --collect-all flet \
+          --collect-all flet_core \
+          --collect-all flet_runtime \
+          main.py
     
-    - name: 📦 Création structure .deb
+    - name: 🔧 Make static binary (fix ncurses issue)
+      run: |
+        # StaticX rend le binaire portable en embarquant toutes les libs
+        staticx dist/bulletinpro dist/bulletinpro-static
+        mv dist/bulletinpro-static dist/bulletinpro
+        chmod +x dist/bulletinpro
+    
+    - name: ✅ Verify build
+      run: |
+        if [ -f dist/bulletinpro ]; then
+          echo "✅ Executable created"
+          ls -lh dist/bulletinpro
+          file dist/bulletinpro
+          ldd dist/bulletinpro || echo "Static binary (no dependencies)"
+        else
+          echo "❌ Build failed"
+          exit 1
+        fi
+    
+    - name: 📦 Create DEB structure
       run: python scripts/build_linux.py
     
-    - name: 🎁 Build package .deb
+    - name: 🎁 Build DEB package
       run: |
         cd dist
         dpkg-deb --build bulletinpro-1.0.0
         mv bulletinpro-1.0.0.deb BulletinPro-1.0.0-amd64.deb
     
-    - name: 📤 Upload package .deb
+    - name: 📤 Upload Linux DEB
       uses: actions/upload-artifact@v4
       with:
         name: BulletinPro-Linux-DEB
         path: dist/BulletinPro-*.deb
-        retention-days: 30
-        if-no-files-found: warn
+        retention-days: 90
     
-    - name: 📤 Upload binaire Linux
+    - name: 📤 Upload Linux binary
       uses: actions/upload-artifact@v4
       with:
         name: BulletinPro-Linux-Binary
         path: dist/bulletinpro
-        retention-days: 30
-        if-no-files-found: warn
+        retention-days: 90
 
   create-release:
-    name: 🎉 Création Release
+    name: 🎉 Create Release
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -163,38 +222,131 @@ jobs:
     - name: 📥 Checkout
       uses: actions/checkout@v4
     
-    - name: 📥 Download Windows Installer
+    - name: 📥 Download Windows installer
       uses: actions/download-artifact@v4
       with:
         name: BulletinPro-Windows-Installer
-        path: ./release
+        path: ./release/windows
     
-    - name: 📥 Download Linux Package
+    - name: 📥 Download Windows portable
+      uses: actions/download-artifact@v4
+      with:
+        name: BulletinPro-Windows-Portable
+        path: ./release/windows-portable
+    
+    - name: 📥 Download Linux DEB
       uses: actions/download-artifact@v4
       with:
         name: BulletinPro-Linux-DEB
-        path: ./release
+        path: ./release/linux
+    
+    - name: 📥 Download Linux binary
+      uses: actions/download-artifact@v4
+      with:
+        name: BulletinPro-Linux-Binary
+        path: ./release/linux-binary
+    
+    - name: 🔒 Create checksums
+      run: |
+        cd release
+        find . -type f -exec sha256sum {} \; > checksums.txt
     
     - name: 🎉 Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: ./release/*
+        files: |
+          ./release/windows/*
+          ./release/windows-portable/*
+          ./release/linux/*
+          ./release/linux-binary/*
+          ./release/checksums.txt
         body: |
           ## 🎉 BulletinPro ${{ github.ref_name }}
           
           ### 📥 Téléchargements
           
-          **Windows** :
-          - Installateur complet : `BulletinPro_Setup_*.exe`
+          **Windows**
+          - 🔧 Installateur complet : `BulletinPro_Setup_*.exe` (recommandé)
+          - 💼 Version portable : `BulletinPro.exe`
           
-          **Linux** :
-          - Package Debian : `BulletinPro-*-amd64.deb`
+          **Linux**
+          - 📦 Package Debian/Ubuntu : `BulletinPro-*-amd64.deb` (recommandé)
+          - 💼 Binaire portable : `bulletinpro` (statique, fonctionne partout)
           
-          ### Installation
+          ### 🚀 Installation
           
-          **Windows** : Double-clic sur l'installateur
-          **Linux** : `sudo dpkg -i BulletinPro-*.deb`
+          **Windows**
+          - Double-clic sur `BulletinPro_Setup_*.exe`
+          - Ou lancez directement `BulletinPro.exe` (portable)
+          
+          **Linux (DEB)**
+          ```bash
+          sudo dpkg -i BulletinPro-*.deb
+          bulletinpro
+          ```
+          
+          **Linux (Binaire)**
+          ```bash
+          chmod +x bulletinpro
+          ./bulletinpro
+          ```
+          
+          ### 🔒 Vérification d'intégrité
+          Vérifiez les checksums SHA256 dans `checksums.txt`
+          
+          ### ✨ Nouveautés
+          - Première version stable
+          - Gestion complète des bulletins scolaires
+          - Synchronisation cloud avec Supabase
+          - Build unifié multi-plateforme
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-builds:
+    name: 🧪 Test Builds
+    needs: [build-windows, build-linux]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    
+    steps:
+    - name: 📥 Download artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/download-artifact@v4
+      with:
+        name: BulletinPro-Windows-Portable
+    
+    - name: 📥 Download artifact (Linux)
+      if: matrix.os == 'ubuntu-22.04'
+      uses: actions/download-artifact@v4
+      with:
+        name: BulletinPro-Linux-Binary
+    
+    - name: 🧪 Test executable exists (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        if (Test-Path BulletinPro.exe) {
+          Write-Host "✅ Windows executable OK"
+          Get-Item BulletinPro.exe | Select-Object Name, Length
+        } else {
+          Write-Host "❌ Executable not found"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: 🧪 Test executable exists (Linux)
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        if [ -f bulletinpro ]; then
+          echo "✅ Linux executable OK"
+          ls -lh bulletinpro
+          file bulletinpro
+          # Vérifier les dépendances
+          ldd bulletinpro || echo "✅ Static binary (no deps)"
+        else
+          echo "❌ Executable not found"
+          exit 1
+        fi
