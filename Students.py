@@ -7,6 +7,16 @@ from pathlib import Path
 from time import sleep
 from sync_manager import supabase_db
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Icons = ft.icons
+# =====================================
+
 def Gestion_Eleve(page, Donner , view_only=False):
     Dialog = ZeliDialog2(page)
     Loag = Dialog.loading_dialog(
