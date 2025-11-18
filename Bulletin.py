@@ -5,6 +5,11 @@ from fpdf import FPDF
 import os
 from sync_manager import supabase_db
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
 global PAGE
 def Generation_Bulletin(page, Donner):
     """Génération des bulletins scolaires avec FPDF2 - Compatible PyInstaller"""
