@@ -2,6 +2,16 @@ import flet as ft
 import time
 from typing import Callable, Optional, List
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Icons = ft.icons
+# =====================================
+
 class ZeliDialog2:
     """
     Système complet de dialogs et notifications pour Flet
