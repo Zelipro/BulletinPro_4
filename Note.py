@@ -7,6 +7,16 @@ from pathlib import Path
 from time import sleep
 from sync_manager import supabase_db
 
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Colors'):
+    ft.Colors = ft.colors
+# =====================================
+
+# === CORRECTIF COMPATIBILITÉ LINUX ===
+if not hasattr(ft, 'Icons'):
+    ft.Colors = ft.icons
+# =====================================
+
 def Saisie_Notes(page, Donner):
     """Saisie des notes par le professeur pour sa matière uniquement"""
     Dialog = ZeliDialog2(page)
