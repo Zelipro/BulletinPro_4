@@ -8,16 +8,14 @@ from sync_manager import supabase_db
 # === CORRECTIF COMPATIBILITÉ LINUX ===
 if not hasattr(ft, 'Colors'):
     ft.Colors = ft.colors
-# =====================================
-
-# === CORRECTIF COMPATIBILITÉ LINUX ===
 if not hasattr(ft, 'Icons'):
     ft.Icons = ft.icons
 # =====================================
 
 global PAGE
+
 def Generation_Bulletin(page, Donner):
-    """Génération des bulletins scolaires avec FPDF2 - Compatible PyInstaller"""
+    """Génération des bulletins avec système de périodes et verrouillage"""
     PAGE = page
     Dialog = ZeliDialog2(page)
     
@@ -94,8 +92,6 @@ def Generation_Bulletin(page, Donner):
                             categorie = "Scientifique"
                         elif any(keyword in genre for keyword in ["litt", "littérature", "littéraire"]):
                             categorie = "Littéraire"
-                        elif any(keyword in genre for keyword in ["art", "artistique"]):
-                            categorie = "Facultative"
                         else:
                             categorie = "Facultative"
                         
@@ -120,13 +116,15 @@ def Generation_Bulletin(page, Donner):
             print(f"❌ Erreur get_matiere_info: {e}")
             return matiere_nom, "Facultative"
     
-    def calculate_matiere_rank(matiere, classe, moyenne_eleve):
-        """Calcule le rang dans une matière"""
+    def calculate_matiere_rank(matiere, classe, moyenne_eleve, periode):
+        """Calcule le rang dans une matière pour une période donnée"""
         try:
             notes_response = supabase_db.client.table("Notes")\
                 .select("matricule, note_interrogation, note_devoir, note_composition")\
                 .eq("classe", classe)\
                 .eq("matiere", matiere)\
+                .eq("periode", periode)\
+                .eq("statut", "en_cours")\
                 .execute()
             
             if not notes_response.data:
@@ -166,7 +164,8 @@ def Generation_Bulletin(page, Donner):
                 "matricule": matricule,
                 "moyenne": moyenne,
                 "annee_scolaire": annee_scolaire,
-                "periode": periode
+                "periode": periode,
+                "date_enregistrement": datetime.now().isoformat()
             }
             
             if existing.data:
@@ -182,6 +181,18 @@ def Generation_Bulletin(page, Donner):
                     .execute()
         except Exception as e:
             print(f"❌ Erreur save_trimestre_moyenne: {e}")
+    
+    def lock_period_notes(classe, periode):
+        """🔒 Verrouille toutes les notes d'une période pour une classe"""
+        try:
+            supabase_db.client.table("Notes").update({
+                "statut": "verrouillée",
+                "date_verrouillage": datetime.now().isoformat()
+            }).eq("classe", classe).eq("periode", periode).eq("statut", "en_cours").execute()
+            return True
+        except Exception as e:
+            print(f"❌ Erreur lock_period_notes: {e}")
+            return False
     
     def get_previous_moyennes(matricule, annee_scolaire, periode_actuelle):
         """Récupère les moyennes précédentes"""
@@ -227,11 +238,17 @@ def Generation_Bulletin(page, Donner):
             print(f"❌ Erreur load_students_by_class: {e}")
             return []
     
-    def get_student_notes(matricule, classe):
-        """Récupère les notes d'un élève"""
+    def get_student_notes(matricule, classe, periode):
+        """Récupère les notes d'un élève pour une période donnée"""
         try:
-            notes = supabase_db.get_notes(matricule=matricule, classe=classe)
-            return notes
+            notes = supabase_db.client.table("Notes")\
+                .select("*")\
+                .eq("matricule", matricule)\
+                .eq("classe", classe)\
+                .eq("periode", periode)\
+                .eq("statut", "en_cours")\
+                .execute()
+            return notes.data if notes.data else []
         except Exception as e:
             print(f"❌ Erreur get_student_notes: {e}")
             return []
@@ -265,12 +282,14 @@ def Generation_Bulletin(page, Donner):
             print(f"❌ Erreur get_teacher_by_subject: {e}")
             return "N/A"
     
-    def calculate_class_rank(moyenne, classe, annee, notes_list):
-        """Calcule le rang dans la classe"""
+    def calculate_class_rank(moyenne, classe, annee, notes_list, periode):
+        """Calcule le rang dans la classe pour une période"""
         try:
             students_response = supabase_db.client.table("Notes")\
                 .select("matricule")\
                 .eq("classe", classe)\
+                .eq("periode", periode)\
+                .eq("statut", "en_cours")\
                 .execute()
             
             if not students_response.data:
@@ -280,9 +299,16 @@ def Generation_Bulletin(page, Donner):
             
             moyennes = []
             for mat in matricules:
-                notes_eleve = supabase_db.get_notes(matricule=mat, classe=classe)
-                if notes_eleve:
-                    moy = calculate_moyenne_generale(notes_eleve)
+                notes_eleve = supabase_db.client.table("Notes")\
+                    .select("*")\
+                    .eq("matricule", mat)\
+                    .eq("classe", classe)\
+                    .eq("periode", periode)\
+                    .eq("statut", "en_cours")\
+                    .execute()
+                
+                if notes_eleve.data:
+                    moy = calculate_moyenne_generale(notes_eleve.data)
                     moyennes.append((mat, moy))
             
             moyennes.sort(key=lambda x: x[1], reverse=True)
@@ -296,12 +322,14 @@ def Generation_Bulletin(page, Donner):
             print(f"❌ Erreur calculate_class_rank: {e}")
             return "N/A"
     
-    def calculate_class_stats(classe):
-        """Calcule les statistiques de la classe"""
+    def calculate_class_stats(classe, periode):
+        """Calcule les statistiques de la classe pour une période"""
         try:
             students_response = supabase_db.client.table("Notes")\
                 .select("matricule")\
                 .eq("classe", classe)\
+                .eq("periode", periode)\
+                .eq("statut", "en_cours")\
                 .execute()
             
             if not students_response.data:
@@ -311,9 +339,16 @@ def Generation_Bulletin(page, Donner):
             
             moyennes = []
             for mat in matricules:
-                notes_eleve = supabase_db.get_notes(matricule=mat, classe=classe)
-                if notes_eleve:
-                    moy = calculate_moyenne_generale(notes_eleve)
+                notes_eleve = supabase_db.client.table("Notes")\
+                    .select("*")\
+                    .eq("matricule", mat)\
+                    .eq("classe", classe)\
+                    .eq("periode", periode)\
+                    .eq("statut", "en_cours")\
+                    .execute()
+                
+                if notes_eleve.data:
+                    moy = calculate_moyenne_generale(notes_eleve.data)
                     moyennes.append(moy)
             
             if moyennes:
@@ -339,16 +374,13 @@ def Generation_Bulletin(page, Donner):
             self.add_page()
         
         def draw_background(self):
-            """Dessine le fond vert menthe du bulletin"""
             self.set_fill_color(212, 232, 212)
             self.rect(0, 0, 210, 297, 'F')
-            
             self.set_line_width(0.5)
             self.set_draw_color(102, 102, 102)
             self.rect(5, 5, 200, 287)
         
         def draw_header(self, etablissement, contact, annee, devise, logo_path=None):
-            """Dessine l'en-tête du bulletin"""
             if logo_path and os.path.exists(logo_path):
                 try:
                     self.image(logo_path, x=93, y=8, w=24)
@@ -380,7 +412,6 @@ def Generation_Bulletin(page, Donner):
             self.multi_cell(65, 3.5, f"Année scolaire : {annee}", 0, 'R')
         
         def draw_title(self, periode):
-            """Dessine le titre du bulletin"""
             self.set_xy(10, 35)
             self.set_fill_color(76, 175, 80)
             self.set_text_color(255, 255, 255)
@@ -389,7 +420,6 @@ def Generation_Bulletin(page, Donner):
             self.set_text_color(0, 0, 0)
         
         def draw_student_info(self, classe, effectif, nom, prenom, matricule, date_naissance, sexe):
-            """Dessine les informations de l'élève"""
             self.set_xy(10, 44)
             self.set_fill_color(232, 245, 233)
             self.set_draw_color(153, 153, 153)
@@ -409,7 +439,6 @@ def Generation_Bulletin(page, Donner):
             self.cell(49, 4, f"Sexe : {sexe}", 0, 1)
         
         def draw_notes_table(self, notes_data, start_y=61):
-            """Dessine le tableau des notes"""
             self.set_xy(10, start_y)
             
             col_w = [40, 12, 12, 12, 12, 12, 10, 12, 8, 25, 20, 15]
@@ -447,7 +476,6 @@ def Generation_Bulletin(page, Donner):
             return current_y
         
         def draw_totals(self, totals_data, start_y):
-            """Dessine les lignes de totaux"""
             self.set_xy(10, start_y)
             self.set_fill_color(255, 249, 230)
             self.set_font('Arial', 'B', 7)
@@ -471,7 +499,6 @@ def Generation_Bulletin(page, Donner):
         
         def draw_decision_section(self, appreciation, responsable_type, responsable_nom, 
                                  distinctions, date_actuelle, titulaire_nom, start_y):
-            """Dessine la section décisions - SIGNATURES GROUPÉES"""
             section_height = 38
             
             self.set_xy(10, start_y)
@@ -481,7 +508,6 @@ def Generation_Bulletin(page, Donner):
             
             self.line(105, start_y, 105, start_y + section_height)
             
-            # GAUCHE
             self.set_xy(12, start_y + 2)
             self.set_font('Arial', 'B', 8)
             self.cell(90, 4, "DÉCISION DU CONSEIL DES PROFESSEURS", 0, 1)
@@ -507,43 +533,29 @@ def Generation_Bulletin(page, Donner):
             self.set_font('Arial', '', 7)
             self.multi_cell(90, 3, appreciation, 0, 'L')
             
-            # DROITE - SIGNATURES GROUPÉES (CORRIGÉ)
-            # 1. TITULAIRE : Label + Espace pour signature + Nom
             self.set_xy(107, start_y + 2)
             self.set_font('Arial', '', 7)
             self.cell(85, 3, "Signature du titulaire de classe", 0, 1, 'C')
             
-            # Espace pour la signature (ligne)
-            #self.line(107, start_y + 8, 197, start_y + 8)
-            
-            # Nom du titulaire JUSTE EN DESSOUS
             self.set_xy(107, start_y + 11)
             self.set_font('Arial', 'B', 7)
             self.cell(85, 3, titulaire_nom, 0, 1, 'C')
             
-            #Ligne pour faire la separation
             self.line(107, start_y + 17, 197, start_y + 17)
             
-            # 2. Date
             self.set_xy(140, start_y + 19)
             self.set_font('Arial', '', 7)
             self.cell(85, 3, f"Lomé le {date_actuelle}", 0, 1, 'C')
             
-            # 3. PROVISEUR : Label + Espace pour signature + Nom
             self.set_xy(107, start_y + 20)
             self.set_font('Arial', '', 7)
             self.cell(85, 3, f"Le {responsable_type}", 0, 1, 'C')
             
-            # Espace pour la signature (ligne)
-            #self.line(107, start_y + 26, 197, start_y + 26)
-            
-            # Nom du responsable JUSTE EN DESSOUS
             self.set_xy(107, start_y + 29)
             self.set_font('Arial', 'B', 8)
             self.cell(85, 3, responsable_nom, 0, 1, 'C')
         
         def draw_footer(self, date_edition):
-            """Dessine le pied de page"""
             self.set_xy(10, 285)
             self.set_font('Arial', '', 7)
             self.set_text_color(102, 102, 102)
@@ -584,7 +596,7 @@ def Generation_Bulletin(page, Donner):
                 note_coef = moyenne_mat * float(note['coefficient'])
                 prof = get_teacher_by_subject(matiere_courte, etablissement)
                 apprec = get_appreciation(moyenne_mat)
-                rang_mat = calculate_matiere_rank(matiere_courte, classe, moyenne_mat)
+                rang_mat = calculate_matiere_rank(matiere_courte, classe, moyenne_mat, periode)
                 
                 matiere_row = [
                     matiere_nom_complet,
@@ -622,7 +634,7 @@ def Generation_Bulletin(page, Donner):
             total_points = sum(calculate_moyenne_matiere(n['note_interrogation'], n['note_devoir'], 
                               n['note_composition']) * float(n['coefficient']) for n in notes)
             
-            stats = calculate_class_stats(classe)
+            stats = calculate_class_stats(classe, periode)
             moyennes_prec = get_previous_moyennes(student[2], annee, periode)
             moyennes_prec_text = "  ".join([f"{p}: {m:.2f}" for p, m in moyennes_prec])
             
@@ -640,16 +652,13 @@ def Generation_Bulletin(page, Donner):
             except:
                 pass
             
-            # TOTAUX CORRIGÉS + MOYENNES PRÉCÉDENTES
             totals_data = [
                 [("", 5), ("TOTAL", 1), (f"{int(total_coef)}", 1), (f"{total_points:.2f}", 1), ("", 4)],
                 [(f"{periode}:", 2), (f"{moyenne_gen:.2f}", 1), (f"Rg : {rang}", 1), ("Moyennes :", 2), ("", 3), ("Retards : 0 fois", 2), ("", 1)],
                 [(f"Moyenne du {type_periode.lower()}", 5), (f"{moyenne_gen:.2f}", 1), (f"Plus forte : {stats['plus_forte']}", 2), ("Absences : 0 H", 3), ("", 1)]
             ]
             
-            # TOUJOURS AFFICHER LES MOYENNES PRÉCÉDENTES (même si vide)
             if moyennes_prec and len(moyennes_prec) > 0:
-                # Il y a des moyennes précédentes
                 totals_data.append([
                     ("Moyennes précédentes", 5), 
                     (moyennes_prec_text, 3), 
@@ -657,7 +666,6 @@ def Generation_Bulletin(page, Donner):
                     ("", 1)
                 ])
             else:
-                # Pas de moyennes précédentes, mais on affiche quand même la ligne
                 totals_data.append([
                     ("Moyennes précédentes", 5), 
                     ("", 3), 
@@ -885,6 +893,8 @@ def Generation_Bulletin(page, Donner):
                 students_response = supabase_db.client.table("Notes")\
                     .select("matricule")\
                     .eq("classe", classe_nom)\
+                    .eq("periode", periode)\
+                    .eq("statut", "en_cours")\
                     .execute()
                 
                 if students_response.data:
@@ -1042,7 +1052,7 @@ def Generation_Bulletin(page, Donner):
         student_rows = []
         
         for student in students:
-            notes = get_student_notes(student[2], classe_nom)
+            notes = get_student_notes(student[2], classe_nom, periode)
             has_notes = len(notes) > 0
             
             if has_notes:
@@ -1173,24 +1183,21 @@ def Generation_Bulletin(page, Donner):
         )
         
         try:
-            # Obtenir le chemin du dossier Documents de l'utilisateur (multi-plateforme)
-            if os.name == 'nt':  # Windows
+            if os.name == 'nt':
                 documents_path = os.path.join(os.path.expanduser('~'), 'Documents')
-            else:  # Linux, Mac, Unix
+            else:
                 documents_path = os.path.join(os.path.expanduser('~'), 'Documents')
             
-            # Créer le chemin complet : Documents/Bulletins/Classe/Periode
             bulletins_dir = os.path.join(documents_path, "Bulletins", classe_nom, periode.replace(' ', '_'))
             
-            # Créer les dossiers si nécessaire
             os.makedirs(bulletins_dir, exist_ok=True)
             
             success_count = 0
             for student in students:
-                notes = get_student_notes(student[2], classe_nom)
+                notes = get_student_notes(student[2], classe_nom, periode)
                 if notes:
                     moyenne_gen = calculate_moyenne_generale(notes)
-                    rang = calculate_class_rank(moyenne_gen, classe_nom, annee, notes)
+                    rang = calculate_class_rank(moyenne_gen, classe_nom, annee, notes, periode)
                     filename = f"{bulletins_dir}/Bulletin_{student[0]}_{student[1]}.pdf"
                     
                     pdf = generate_bulletin_pdf(
@@ -1204,6 +1211,10 @@ def Generation_Bulletin(page, Donner):
                         success_count += 1
             
             Dialog.close_dialog(loading_dialog)
+            
+            # 🔒 VERROUILLER LES NOTES APRÈS IMPRESSION
+            lock_success = lock_period_notes(classe_nom, periode)
+            
             success_dialog = Dialog.custom_dialog(
                 title="✅ Génération terminée",
                 content=ft.Column([
@@ -1215,12 +1226,33 @@ def Generation_Bulletin(page, Donner):
                         color=ft.Colors.GREEN
                     ),
                     ft.Text(f"Dossier: {bulletins_dir}", size=13),
+                    ft.Divider(),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Icon(ft.Icons.LOCK, color=ft.Colors.ORANGE, size=40),
+                            ft.Text(
+                                "🔒 Période verrouillée avec succès !",
+                                size=14,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.ORANGE
+                            ),
+                            ft.Text(
+                                "Les notes sont maintenant en lecture seule.\nUn nouveau trimestre peut être créé.",
+                                size=12,
+                                text_align=ft.TextAlign.CENTER,
+                                color=ft.Colors.GREY_700
+                            )
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
+                        padding=15,
+                        bgcolor=ft.Colors.ORANGE_50,
+                        border_radius=10
+                    ),
                     ft.ElevatedButton(
                         "Ouvrir le dossier",
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=lambda e: os.startfile(bulletins_dir) if os.name == 'nt' else os.system(f'open "{bulletins_dir}"')
                     )
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15, width=400, height=250),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15, width=400, height=300),
                 actions=[
                     ft.ElevatedButton(
                         "OK",
