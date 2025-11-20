@@ -53,9 +53,13 @@ def Gestion_Matiere(page, Donner):
         """Modifie une matière"""
         Loag2 = Dialog.loading_dialog()
         def save():
+            Loag11 = Dialog.loading_dialog(
+                title = "Enregistrement en cours ... "
+            )
             try:
                 etablissement = Return("etablissement")
                 if not etablissement:
+                    Dialog.close_dialog(Loag11)
                     Dialog.error_toast("Erreur de récupération de l'établissement")
                     return
                 
@@ -137,18 +141,24 @@ def Gestion_Matiere(page, Donner):
         """Ajoute une nouvelle matière"""
         Loag1 = Dialog.loading_dialog()
         def save():
+            Loag11 = Dialog.loading_dialog(
+                title = "Enregistrement en cours ... "
+            )
             try:
                 etablissement = Return("etablissement")
                 if not etablissement:
+                    Dialog.close_dialog(Loag11)
                     Dialog.error_toast("Erreur de récupération de l'établissement")
                     return
                 
                 if not non_field.value or not non_field.value.strip():
+                    Dialog.close_dialog(Loag11)
                     non_field.error_text = "Ce champ est obligatoire"
                     page.update()
                     return
                 
                 if not genre_field.value:
+                    Dialog.close_dialog(Loag11)
                     genre_field.error_text = "Sélectionnez un genre"
                     page.update()
                     return
@@ -161,9 +171,11 @@ def Gestion_Matiere(page, Donner):
                 )
                 
                 if not success:
+                    Dialog.close_dialog(Loag11)
                     Dialog.error_toast("Cette matière existe déjà")
                     return
-                
+
+                Dialog.close_dialog(Loag11)
                 Dialog.info_toast("Matière ajoutée avec succès !")
                 Dialog.close_dialog(diag)
                 Gestion_Matiere(page, Donner)
